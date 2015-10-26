@@ -1,0 +1,13 @@
+group = "net.vivin.cse576.hw3"
+description = "Hidden Markov Model POS Tagger - CSE 576 HW3"
+
+apply plugin: 'java'
+apply plugin: 'application'
+
+mainClassName = "net.vivin.cse576.hw3.HMMPoSTagger"
+
+jar {
+    manifest {
+        attributes 'Main-Class': "net.vivin.cse576.hw3.HMMPoSTagger"
+    }
+}
