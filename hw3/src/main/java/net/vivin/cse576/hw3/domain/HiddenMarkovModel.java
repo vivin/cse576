@@ -78,34 +78,61 @@ public class HiddenMarkovModel {
         }
 
         public List<TaggedWord> tag() {
-            IntStream.range(0, observations.size()).forEach(t -> {
-                if(t == 0) {
-                    Arrays.stream(PartOfSpeechTag.values()).forEach(j ->
-                        scoresAndBackPointers.get(t).put(
-                            j, new ScoreAndBackPointer(null, null, transitionProbabilityFromStartTo(j).multiply(observationProbabilityFor(j, observations.get(t))))
-                        )
-                    );
+            int T = observations.size() - 1;
+            IntStream.range(0, T + 1).forEach(t -> {
+                if (t == 0) {
+                    Arrays.stream(PartOfSpeechTag.values()).forEach(j -> {
+                        Map<PartOfSpeechTag, ScoreAndBackPointer> vbt_1 = scoresAndBackPointers.get(0);
+
+                        BigDecimal a_0j = transitionProbabilityFromStartTo(j);
+                        String o_1 = observations.get(0);
+                        BigDecimal b_j_of_o_1 = observationProbabilityFor(j, o_1);
+                        ScoreAndBackPointer vbt_1_of_j = new ScoreAndBackPointer(a_0j.multiply(b_j_of_o_1));
+
+                        vbt_1.put(j, vbt_1_of_j);
+                    });
                 } else {
-                    Arrays.stream(PartOfSpeechTag.values()).forEach(j ->
-                        scoresAndBackPointers.get(t).put(
-                            j, Arrays.stream(PartOfSpeechTag.values()).map(i ->
-                                    new ScoreAndBackPointer(i, observations.get(t - 1), scoresAndBackPointers.get(t - 1).get(i).score.multiply(transitionProbabilityBetween(i, j)).multiply(observationProbabilityFor(j, observations.get(t))))
-                            ).max((s1, s2) -> s1.score.compareTo(s2.score)).get()
-                        )
-                    );
+                    Arrays.stream(PartOfSpeechTag.values()).forEach(j -> {
+                        Map<PartOfSpeechTag, ScoreAndBackPointer> vbt_t = scoresAndBackPointers.get(t);
+
+                        ScoreAndBackPointer vbt_t_of_j = Arrays.stream(PartOfSpeechTag.values()).map(i -> {
+                            Map<PartOfSpeechTag, ScoreAndBackPointer> vbt_t_minus_1 = scoresAndBackPointers.get(t - 1);
+
+                            BigDecimal vbt_t_minus_1_of_i = vbt_t_minus_1.get(i).score;
+                            BigDecimal a_ij = transitionProbabilityBetween(i, j);
+                            String o_t = observations.get(t);
+                            BigDecimal b_j_of_o_t = observationProbabilityFor(j, o_t);
+                            String o_t_minus_1 = observations.get(t - 1);
+
+                            return new ScoreAndBackPointer(i, o_t_minus_1, vbt_t_minus_1_of_i.multiply(a_ij).multiply(b_j_of_o_t));
+                        }).max((s1, s2) -> s1.score.compareTo(s2.score)).get();
+
+                        vbt_t.put(j, vbt_t_of_j);
+                    });
                 }
             });
 
-            ScoreAndBackPointer terminal = Arrays.stream(PartOfSpeechTag.values()).map(i ->
-                new ScoreAndBackPointer(i, observations.get(observations.size() - 1), scoresAndBackPointers.get(observations.size() - 1).get(i).score.multiply(transitionProbabilityToFinalFrom(i)))
-            ).max((s1, s2) -> s1.score.compareTo(s2.score)).get();
+            ScoreAndBackPointer q_T_star = Arrays.stream(PartOfSpeechTag.values()).map(i -> {
+                Map<PartOfSpeechTag, ScoreAndBackPointer> vbt_T = scoresAndBackPointers.get(T);
 
-            List<TaggedWord> path = IntStream.iterate(observations.size() - 1, i -> i - 1).limit(observations.size() - 1).mapToObj(i ->
-                    new TaggedWord(scoresAndBackPointers.get(i).get(terminal.previous).previous, scoresAndBackPointers.get(i).get(terminal.previous).previousWord)
-            ).collect(Collectors.toList());
+                BigDecimal vbt_T_of_i = vbt_T.get(i).score;
+                BigDecimal a_iF = transitionProbabilityToFinalFrom(i);
+                String o_T_minus_1 = observations.get(T - 1);
+
+                return new ScoreAndBackPointer(i, o_T_minus_1, vbt_T_of_i.multiply(a_iF));
+            }).max((s1, s2) -> s1.score.compareTo(s2.score)).get();
+
+            List<TaggedWord> path = new ArrayList<>();
+
+            ScoreAndBackPointer q_t = q_T_star;
+            int t = T;
+            while(t >= 0) {
+                path.add(new TaggedWord(q_t.previous, q_t.previousWord));
+                q_t = scoresAndBackPointers.get(t).get(q_t.previous);
+                t--;
+            }
+
             Collections.reverse(path);
-            path.add(new TaggedWord(terminal.previous, observations.get(observations.size() - 1)));
-
             return path;
         }
 
@@ -118,6 +145,10 @@ public class HiddenMarkovModel {
                 this.previous = previous;
                 this.previousWord = previousWord;
                 this.score = score;
+            }
+
+            public ScoreAndBackPointer(BigDecimal score) {
+                this(null, null, score);
             }
         }
     }

@@ -63,5 +63,6 @@ public class HMMPoSTagger {
 
         System.out.println("done.\n");
         System.out.println("Incorrectly tagged " + counts.get("incorrectlyTagged") + " words out of a total of " + counts.get("totalWords") + " for an error rate of " + new BigDecimal(counts.get("incorrectlyTagged")).divide(new BigDecimal(counts.get("totalWords")), 4, BigDecimal.ROUND_HALF_UP) + ".");
+
     }
 }
